@@ -290,36 +290,36 @@ public:
         mi_ = mi;
     }
 
-enum FMT_kind
-{
-    AH, BC, DE, F, G, M
-};
-bool execute (operation op)
-{
-    switch (op)
-        {
-            case jmpr:
-                //ip <- ip + imm*4;
-            case ret:
-                //ip <- *sp;
-                //sp += 16 + imm;
-            case reta:
-                //ip <- *sp;
-                //sp += 16;
-                //sp += reg;
-            case trap:
-                //push r0-r31;
-                //push ip;
-                //ip <- (reg & 0x3FF) * 16;
-            case reti:
-                //pop ip;
-                //pop r0-r31;
-            default:
-            break;
+    enum FMT_kind
+    {
+        AH, BC, DE, F, G, M
+    };
+    bool execute (operation op, size_t imm)
+    {
+        switch (op)
+            {
+                case jmpr:
+                   ctx_.int_ctx.ip = ctx_.int_ctx.ip + imm*4;
+                case ret:
+                    ctx_.int_ctx.ip = ctx_.float_ctx.sp;
+                    ctx_.float_ctx.sp += 16 + imm;
+                case reta:
+                    ctx_.int_ctx.ip = ctx_.float_ctx.sp;
+                    ctx_.float_ctx.sp += 16;
+                    ctx_.float_ctx.sp += ctx_.int_ctx.r[0];
+                case trap:
+                    //push r0-r31;
+                    //push (ctx_.int_ctx.ip);
+                    //ctx_.int_ctx.ip = (ctx_.int_ctx.r[0] & 0x3FF) * 16;
+                case reti:
+                   // pop (ctx_.int_ctx.ip);
+                    //pop r0-r31;
+                default:
+                break;
+            
+            }
         
-        }
-    
-};
+    };
 
     private:
         Context ctx_;
