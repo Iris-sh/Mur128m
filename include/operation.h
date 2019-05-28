@@ -1,8 +1,7 @@
 #ifndef OPERATION_H
 #define OPERATION_H
-#include "operation.h"
 
- enum operation
+enum operation
 {
     jmpr = 0,
     ret  = 1,

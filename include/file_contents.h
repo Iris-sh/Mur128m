@@ -14,11 +14,5 @@ enum class Get_contents_return_code{
 
 using Contents = std::pair<Get_contents_return_code, std::vector<std::uint8_t>>;
 
-/**
-   Returns: the contents of the file with the specified name
-   \param [in] name file name
-   \returns The pair (return code, value), here value is of type std::string.
-   If an error occured, then the second component of this pair is an empty string.
-*/
 Contents get_contents(const char* name);
 #endif

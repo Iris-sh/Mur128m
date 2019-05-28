@@ -77,8 +77,6 @@ int main(int argc, char* argv[]){
     m.run();
     
     print(pr);
-	//for (std::vector<uint8_t>::const_iterator i = t.begin(); i != t.end(); ++i)
-	//	std::cout << *i;
 
     return 0;
 }

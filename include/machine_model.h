@@ -2,6 +2,7 @@
 #define MACHINE_MODEL_H
 #include "memory_info.h"
 #include "operation.h"
+#include "command_format.h"
 
 constexpr unsigned num_of_float_regs=32;
 constexpr unsigned num_of_int_regs=32;
@@ -34,55 +35,6 @@ struct Context
     }
 };
 
-struct M_fmt{
-    unsigned unused : 2;
-    unsigned sf     : 3;
-    unsigned ix     : 5;
-    unsigned b      : 5;
-    unsigned r      : 5;
-    unsigned op     : 8;
-    unsigned fmt    : 4;
-};
-
-struct G_fmt{
-    unsigned r4     : 5;
-    unsigned r3     : 5;
-    unsigned r2     : 5;
-    unsigned r1     : 5;
-    unsigned op     : 8;
-    unsigned fmt    : 4;
-};
-
-struct F_fmt{
-    unsigned unused : 5;
-    unsigned r3     : 5;
-    unsigned r2     : 5;
-    unsigned r1     : 5;
-    unsigned op     : 8;
-    unsigned fmt    : 4;
-};
-
-struct DE_fmt{
-    unsigned imm    : 10;
-    unsigned r2     : 5;
-    unsigned r1     : 5;
-    unsigned op     : 8;
-    unsigned fmt    : 4;
-};
-
-struct BC_fmt{
-    unsigned imm    : 15;
-    unsigned r      : 5;
-    unsigned op     : 8;
-    unsigned fmt    : 4;
-};
-
-struct AH_fmt{
-    unsigned imm    : 20;
-    unsigned op     : 8;
-    unsigned fmt    : 4;
-};
-
 class Machine_model
 {
 public:
@@ -100,36 +52,20 @@ public:
     }
     void set_memory_info(const Memory_info& mi)
     {
-        mi_=mi;
+        mi_ = mi;
     }
     Memory_info get_memory_info() const
     {
         return mi_;
     }
-    //void run(){}
-    /*
     void run()
     {
-        convert_image_to_model();
-        for(;;)
-        {
-            bool t = read_and_execute();
-            if(!t)
-            {
-                break;
-            }
-        }
-        
-    };
-    */
-    void run()
-    {
-        //convert_image_to_model();
+        printf("Мы тут выполняем\n");
         while(read_command())
         {
+            continue;
             if(execute_command())
             {
-                ctx_.int_ctx.ip += 4;
             }
             else
             {
@@ -140,37 +76,100 @@ public:
     
     bool read_command()
     {
-        auto& b = mi_.block[0];
-        unsigned __int128 ba = b.begin_addr;
-        auto& content = b.content;
-        std::uint8_t* p = content.data();
-        uint32_t* com_ptr = (uint32_t*)p;
-        current_command_ = *com_ptr;
+        //auto& b = mi_.block[0];
+        //unsigned __int128 ba = b.begin_addr;
+        //auto& content = b.content;
+        //std::uint8_t* p = content.data();
+        //uint32_t* com_ptr = (uint32_t*)p;
+        //current_command_ = *com_ptr;
+        
+        //если мы выходим за границы памяти
+        if(mi_.block[0].content.size() < (uint64_t)ctx_.int_ctx.ip + 4)
+        {
+            printf("mi_.block[0].content.size()=%lu ctx_.int_ctx.ip=%lu выход за границы памяти\n", (uint64_t)mi_.block[0].content.size(), (uint64_t)ctx_.int_ctx.ip + 4);
+            return false;
+        }
+        // берем адрес элемента со смещением и интерпретируем память по нему как uint32_t
+        current_command_ = *((uint32_t*)(&(mi_.block[0].content[ctx_.int_ctx.ip])));
 
-        bool t = false;        
+        bool t = false;
         switch(current_command_>>28)
         {
             case AH:
-                //t = ah_format(current_command_);
+                printf("Считана команда AH\n");
+                t = ah_format();
                 break;
+/* пока работаем только с одним типом команд
             case BC:
+                printf("Считана команда BC\n");
                 //t = bc_format(current_command_);
                 break;
             case DE:
+                printf("Считана команда DE\n");
                 //t = de_format(current_command_);
                 break;
             case F:
+                printf("Считана команда F\n");
                 //t = f_format(current_command_);
                 break;
             case G:
+                printf("Считана команда G\n");
                 //t = g_format(current_command_);
                 break;
             case M:
+                printf("Считана команда M\n");
                 //t = m_format(current_command_);
                 break;
+*/
+            default:
+                printf("Этот формат команд не поддерживается\n");
+                t = true; // добавлено в целях отладки, чтобы выполнение не прерывалось
+                break;
         }
+        ctx_.int_ctx.ip += 4;
         return t;
     };
+    
+    bool ah_format()
+    {
+        // берем из команды фрагменты, соответсвующие частям AH
+        uint32_t op = (current_command_>>20) & 0b11'1111'1111;
+        uint32_t imm = current_command_ & 0b1111'1111'1111'1111'1111;
+        switch (op)
+        {
+            case jmpr:
+                ctx_.int_ctx.ip = ctx_.int_ctx.ip + imm*4;
+                printf("Выполнено jmpr\n");
+                break;
+            case ret:
+                ctx_.int_ctx.ip = ctx_.float_ctx.sp;
+                ctx_.float_ctx.sp += 16 + imm;
+                printf("Выполнено ret\n");
+                break;
+            case reta:
+                ctx_.int_ctx.ip = ctx_.float_ctx.sp;
+                ctx_.float_ctx.sp += 16;
+                ctx_.float_ctx.sp += ctx_.int_ctx.r[0];
+                printf("Выполнено reta\n");
+                break;
+/* здесь используются другие команды, которые еще не имеют реализации
+            case trap:
+                //push r0-r31;
+                //push (ctx_.int_ctx.ip);
+                //ctx_.int_ctx.ip = (ctx_.int_ctx.r[0] & 0x3FF) * 16;
+                break;
+            case reti:
+                // pop (ctx_.int_ctx.ip);
+                //pop r0-r31;
+                break;
+*/
+            default:
+                printf("Этот тип операций не поддерживается\n");
+                //return false; // закомменчено в целях отладки, чтобы выполнение не прерывалось
+                break;
+        }
+        return true;
+    }
     
     bool execute_command()
     {
@@ -193,37 +192,6 @@ public:
         }
         return true;
     };
-    
-    bool read_and_execute()
-    {
-        auto& b=mi_.block[0];
-        unsigned __int128 ba=b.begin_addr;
-        unsigned __int128 ip=ctx_.int_ctx.ip;
-        auto& content = b.content;
-        size_t idx=ip-ba;//
-        std::uint8_t*p=content.data();
-        uint32_t* com_ptr=(uint32_t*)p;
-        uint32_t command=*com_ptr;
-        uint32_t command_type=command>>30;
-        switch(command_type)
-        {
-            case 0:
-                //non_integer_non_moving();
-                break;
-            case 1:
-                //float_non_moving();
-                break;
-            case 2:
-                //control_transfer();
-                break;
-            case 3:
-                //moving();
-                break;
-            default:
-                break;
-        }
-        return true;
-    }
     
     enum class Arg_type
     {
@@ -250,7 +218,6 @@ public:
         NOT_IMM=0b10'1001
     };
    
-    
     void non_integer_non_moving(uint32_t command)
     {
         uint32_t operation = (command>>20)& 0b11'1111'1111;
@@ -260,7 +227,7 @@ public:
             case DIVMODIS:
             {
                 arguments.num_of_args_ = 4;
-                uint32_t temp = command;
+                //uint32_t temp = command;
 //                 for(int i = 3; i >= 0; --i)
 //                 {
 //                     uint32_t reg = temp & 0b1'1111;
@@ -290,35 +257,36 @@ public:
         mi_ = mi;
     }
 
-    enum FMT_kind
-    {
-        AH, BC, DE, F, G, M
-    };
     bool execute (operation op, size_t imm)
     {
         switch (op)
-            {
-                case jmpr:
-                   ctx_.int_ctx.ip = ctx_.int_ctx.ip + imm*4;
-                case ret:
-                    ctx_.int_ctx.ip = ctx_.float_ctx.sp;
-                    ctx_.float_ctx.sp += 16 + imm;
-                case reta:
-                    ctx_.int_ctx.ip = ctx_.float_ctx.sp;
-                    ctx_.float_ctx.sp += 16;
-                    ctx_.float_ctx.sp += ctx_.int_ctx.r[0];
-                case trap:
-                    //push r0-r31;
-                    //push (ctx_.int_ctx.ip);
-                    //ctx_.int_ctx.ip = (ctx_.int_ctx.r[0] & 0x3FF) * 16;
-                case reti:
-                   // pop (ctx_.int_ctx.ip);
-                    //pop r0-r31;
-                default:
+        {
+            case jmpr:
+                ctx_.int_ctx.ip = ctx_.int_ctx.ip + imm*4;
                 break;
-            
-            }
-        
+            case ret:
+                ctx_.int_ctx.ip = ctx_.float_ctx.sp;
+                ctx_.float_ctx.sp += 16 + imm;
+                break;
+            case reta:
+                ctx_.int_ctx.ip = ctx_.float_ctx.sp;
+                ctx_.float_ctx.sp += 16;
+                ctx_.float_ctx.sp += ctx_.int_ctx.r[0];
+                break;
+            case trap:
+                //push r0-r31;
+                //push (ctx_.int_ctx.ip);
+                //ctx_.int_ctx.ip = (ctx_.int_ctx.r[0] & 0x3FF) * 16;
+                break;
+            case reti:
+                // pop (ctx_.int_ctx.ip);
+                //pop r0-r31;
+                break;
+            default:
+                printf("Этот тип операций не поддерживается\n");
+                break;
+        }
+        return true;
     };
 
     private:

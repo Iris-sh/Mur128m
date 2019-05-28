@@ -11,7 +11,7 @@ public:
     
     void set_image(const parsing_result_t & image)
     {
-        image_=image;
+        image_ = image;
     }
     parsing_result_t get_image() const
     {
@@ -43,6 +43,7 @@ void Mur128M::run()
 
 void Mur128M::Impl::run()
 {
+    convert_image_to_model();
     model_.run();
 }
 

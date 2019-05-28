@@ -63,6 +63,4 @@ void print(parsing_result_t pr) {
         
         printf ("%s: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X \n", uint128tostr(i).c_str(), v[i], v[i+1], v[i+2], v[i+3], v[i+4], v[i+5], v[i+6], v[i+7], v[i+8], v[i+9], v[i+10], v[i+11], v[i+12], v[i+13], v[i+14], v[i+15]);
     }
-   //for (std::vector<uint8_t>::const_iterator i = pr.content_.begin(); i != pr.content_.end(); ++i) %%%%
-	//std::cout << *i;
 }
